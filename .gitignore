@@ -23,6 +23,24 @@
 # misc
 .DS_Store
 *.pem
+.idea/
+.vscode/
+
+# local prototype data and temporary uploads
+/data/
+/receipts/
+/uploads/
+/tmp/
+/temp/
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+*.tmp
+
+# local credentials
+firebase-adminsdk-*.json
+service-account*.json
 
 # debug
 npm-debug.log*

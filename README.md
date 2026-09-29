@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MarginCheck
 
-## Getting Started
+MarginCheck is a local-first MVP for small contractors to compare estimated job costs with actual labour and expenses.
 
-First, run the development server:
+## Current scope
+
+- Create jobs with an estimate and per-job currency.
+- Track labour and expenses against each job.
+- Calculate profit, margin, variances, and profit per labour hour.
+- Review job activity and attach receipt images or PDFs.
+- View deterministic dashboard summaries and jobs that need attention.
+
+Firebase, authentication, AI/OCR, accounting integrations, and cloud receipt backup are not part of this baseline.
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Useful checks:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx tsc --noEmit
+npm run lint
+npm run build
+```
 
-## Learn More
+## Routes
 
-To learn more about Next.js, take a look at the following resources:
+- `/dashboard` — jobs overview and deterministic performance summaries
+- `/jobs/new` — new job form
+- `/jobs/[id]` — job profitability and activity detail
+- `/` — redirects to the dashboard
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Local persistence
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Jobs: `margincheck_jobs` in `localStorage`
+- Labour: `margincheck_labour_entries` in `localStorage`
+- Expenses and receipt metadata: `margincheck_expense_entries` in `localStorage`
+- Receipt files: `margincheck_receipts` in IndexedDB
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This data stays in the current browser profile and is not backed up or synchronized.
