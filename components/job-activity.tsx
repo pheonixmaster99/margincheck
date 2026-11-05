@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { formatNumber } from "@/lib/calculations";
+import { calculateLabourEntryTotal, formatNumber } from "@/lib/calculations";
 import { formatCurrencyWithCents } from "@/lib/currency";
-import { deleteExpenseEntry, deleteLabourEntry } from "@/lib/entries-storage";
-import { getReceipt } from "@/lib/receipt-storage";
+import { deleteExpense } from "@/lib/expenses-service";
+import { deleteLabourEntry } from "@/lib/labour-service";
+import { deleteReceipt, getReceiptUrl } from "@/lib/receipts-service";
 import type { ExpenseEntry, LabourEntry, ReceiptMetadata } from "@/types/entries";
 import type { Job } from "@/types/job";
 
@@ -60,18 +61,26 @@ export function JobActivity({
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [viewedReceipt, setViewedReceipt] = useState<ReceiptMetadata | null>(null);
   const [deleteError, setDeleteError] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
   const sortedExpenses = useMemo(() => newestFirst(expenses), [expenses]);
   const sortedLabour = useMemo(() => newestFirst(labour), [labour]);
 
   async function confirmDelete() {
-    if (!deleteTarget) return;
+    if (!deleteTarget || isDeleting) return;
     setDeleteError("");
+    setIsDeleting(true);
     try {
-      if (deleteTarget.type === "expense") await deleteExpenseEntry(deleteTarget.entry.id);
-      else deleteLabourEntry(deleteTarget.entry.id);
+      if (deleteTarget.type === "expense") {
+        if (deleteTarget.entry.receipt) await deleteReceipt(deleteTarget.entry.receipt);
+        await deleteExpense(job.ownerId, job.id, deleteTarget.entry.id);
+      } else {
+        await deleteLabourEntry(job.ownerId, job.id, deleteTarget.entry.id);
+      }
       setDeleteTarget(null);
     } catch {
       setDeleteError("This entry could not be deleted. Please try again.");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -155,7 +164,7 @@ export function JobActivity({
                     <td className="px-4 py-4 font-semibold text-slate-900">{entry.workerName ?? "—"}</td>
                     <td className="px-4 py-4 text-right text-slate-700">{formatNumber(entry.hours)}</td>
                     <td className="whitespace-nowrap px-4 py-4 text-right text-slate-700">{formatCurrencyWithCents(entry.hourlyCost, job.currency)}</td>
-                    <td className="whitespace-nowrap px-4 py-4 text-right font-semibold text-slate-900">{formatCurrencyWithCents(entry.totalCost, job.currency)}</td>
+                    <td className="whitespace-nowrap px-4 py-4 text-right font-semibold text-slate-900">{formatCurrencyWithCents(calculateLabourEntryTotal(entry.hours, entry.hourlyCost), job.currency)}</td>
                     <td className="max-w-[240px] px-4 py-4 text-slate-600">{entry.notes ?? "—"}</td>
                     <td className="px-6 py-4 text-right"><ActionButtons onEdit={() => onEditLabour(entry)} onDelete={() => setDeleteTarget({ type: "labour", entry })} /></td>
                   </tr>
@@ -173,8 +182,8 @@ export function JobActivity({
             <p className="mt-2 text-sm leading-6 text-slate-600">This will update the job&apos;s actual costs and margin. This action cannot be undone.</p>
             {deleteError ? <p role="alert" className="mt-3 text-xs font-medium text-red-600">{deleteError}</p> : null}
             <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={() => setDeleteTarget(null)} className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
-              <button type="button" onClick={confirmDelete} className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700">Delete {deleteTarget.type === "expense" ? "Expense" : "Labour"}</button>
+              <button type="button" onClick={() => setDeleteTarget(null)} disabled={isDeleting} className="h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60">Cancel</button>
+              <button type="button" onClick={confirmDelete} disabled={isDeleting} className="h-10 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60">{isDeleting ? "Deleting…" : `Delete ${deleteTarget.type === "expense" ? "Expense" : "Labour"}`}</button>
             </div>
           </section>
         </div>
@@ -189,26 +198,19 @@ function ReceiptViewer({ receipt, onClose }: { receipt: ReceiptMetadata; onClose
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let objectUrl: string | null = null;
     let cancelled = false;
-    getReceipt(receipt.receiptId)
-      .then((storedReceipt) => {
+    getReceiptUrl(receipt)
+      .then((downloadUrl) => {
         if (cancelled) return;
-        if (!storedReceipt) {
-          setError("This receipt file is no longer available in this browser.");
-          return;
-        }
-        objectUrl = URL.createObjectURL(storedReceipt.blob);
-        setUrl(objectUrl);
+        setUrl(downloadUrl);
       })
       .catch(() => {
         if (!cancelled) setError("The receipt could not be opened.");
       });
     return () => {
       cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [receipt.receiptId]);
+  }, [receipt]);
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/60 px-4 py-8 backdrop-blur-[1px]">
@@ -216,7 +218,7 @@ function ReceiptViewer({ receipt, onClose }: { receipt: ReceiptMetadata; onClose
         <header className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
           <div className="min-w-0">
             <h2 id="receipt-viewer-title" className="truncate text-lg font-bold text-slate-900">{receipt.filename}</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Stored locally in this browser</p>
+            <p className="mt-0.5 text-xs text-slate-500">Stored securely with this job</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close receipt" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700">×</button>
         </header>

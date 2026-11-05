@@ -93,7 +93,10 @@ export function calculateCostComparisons(
   labourEntries: LabourEntry[] = [],
   expenseEntries: ExpenseEntry[] = [],
 ): CostComparison[] {
-  const actualLabourCost = labourEntries.reduce((total, entry) => total + entry.totalCost, 0);
+  const actualLabourCost = labourEntries.reduce(
+    (total, entry) => total + calculateLabourEntryTotal(entry.hours, entry.hourlyCost),
+    0,
+  );
   const actualMaterials = sumExpenseCategory(expenseEntries, "materials");
   const actualSubcontractors = sumExpenseCategory(expenseEntries, "subcontractor");
   const actualOther = sumExpenseCategory(expenseEntries, "other");
@@ -126,7 +129,10 @@ export function calculateJobFinancials(
     job.estimatedSubcontractors +
     job.estimatedOther;
   const actualLabourHours = labourEntries.reduce((total, entry) => total + entry.hours, 0);
-  const actualLabourCost = labourEntries.reduce((total, entry) => total + entry.totalCost, 0);
+  const actualLabourCost = labourEntries.reduce(
+    (total, entry) => total + calculateLabourEntryTotal(entry.hours, entry.hourlyCost),
+    0,
+  );
   const actualMaterials = sumExpenseCategory(expenseEntries, "materials");
   const actualSubcontractors = sumExpenseCategory(expenseEntries, "subcontractor");
   const actualOther = sumExpenseCategory(expenseEntries, "other");

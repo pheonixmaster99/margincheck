@@ -1,4 +1,3 @@
-import { calculateLabourEntryTotal } from "@/lib/calculations";
 import { deleteReceipt } from "@/lib/receipt-storage";
 import { EXPENSE_CATEGORIES, type ExpenseCategory, type ExpenseEntry, type LabourEntry, type ReceiptMetadata } from "@/types/entries";
 
@@ -42,13 +41,14 @@ function normalizeLabourEntry(value: unknown): LabourEntry | null {
   return {
     id: entry.id,
     jobId: entry.jobId,
+    ownerId: typeof entry.ownerId === "string" ? entry.ownerId : "",
     date: entry.date,
     hours: entry.hours,
     hourlyCost: entry.hourlyCost,
-    totalCost: calculateLabourEntryTotal(entry.hours, entry.hourlyCost),
     workerName: optionalString(entry.workerName),
     notes: optionalString(entry.notes),
     createdAt: entry.createdAt,
+    updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : entry.createdAt,
   };
 }
 
@@ -75,6 +75,7 @@ function normalizeReceiptMetadata(value: unknown): ReceiptMetadata | undefined {
     filename: receipt.filename.trim(),
     mimeType: receipt.mimeType as ReceiptMetadata["mimeType"],
     size: receipt.size,
+    storagePath: typeof receipt.storagePath === "string" ? receipt.storagePath : undefined,
   };
 }
 
@@ -95,6 +96,7 @@ function normalizeExpenseEntry(value: unknown): ExpenseEntry | null {
   return {
     id: entry.id,
     jobId: entry.jobId,
+    ownerId: typeof entry.ownerId === "string" ? entry.ownerId : "",
     date: entry.date,
     vendor: entry.vendor.trim(),
     category: entry.category,
@@ -102,6 +104,7 @@ function normalizeExpenseEntry(value: unknown): ExpenseEntry | null {
     notes: optionalString(entry.notes),
     receipt: normalizeReceiptMetadata(entry.receipt),
     createdAt: entry.createdAt,
+    updatedAt: typeof entry.updatedAt === "string" ? entry.updatedAt : entry.createdAt,
   };
 }
 
@@ -172,24 +175,27 @@ export function migrateLegacyActualEntries(
     upsertById(labourEntries, {
       id: `${jobId}-legacy-actual-labour`,
       jobId,
+      ownerId: "",
       date,
       workerName: "Legacy labour",
       hours: actual.labourHours,
       hourlyCost,
-      totalCost: calculateLabourEntryTotal(actual.labourHours, hourlyCost),
       notes: note,
       createdAt,
+      updatedAt: createdAt,
     });
   } else if (actual.labourCost > 0) {
     upsertById(expenseEntries, {
       id: `${jobId}-legacy-actual-labour-cost`,
       jobId,
+      ownerId: "",
       date,
       vendor: "Legacy labour cost",
       category: "other",
       amount: actual.labourCost,
       notes: `${note} Labour hours were unavailable, so this amount is retained under Other.`,
       createdAt,
+      updatedAt: createdAt,
     });
   }
 
@@ -209,12 +215,14 @@ export function migrateLegacyActualEntries(
     upsertById(expenseEntries, {
       id: `${jobId}-legacy-actual-${legacyExpense.suffix}`,
       jobId,
+      ownerId: "",
       date,
       vendor: legacyExpense.vendor,
       category: legacyExpense.category,
       amount: legacyExpense.amount,
       notes: note,
       createdAt,
+      updatedAt: createdAt,
     });
   }
 

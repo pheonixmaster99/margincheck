@@ -91,7 +91,7 @@ export function ReceiptAttachmentField({
           )}
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-800">{filename}</p>
-            <p className="mt-0.5 text-xs text-slate-500">{formatFileSize(fileSize)} · {selectedFile ? "Ready to save" : "Stored locally"}</p>
+            <p className="mt-0.5 text-xs text-slate-500">{formatFileSize(fileSize)} · {selectedFile ? "Ready to upload" : "Stored securely"}</p>
           </div>
           <div className="flex shrink-0 gap-3 text-xs font-semibold">
             <label htmlFor="expense-receipt" className="cursor-pointer text-blue-600 hover:text-blue-700">Replace</label>
@@ -104,7 +104,7 @@ export function ReceiptAttachmentField({
         </label>
       )}
       {error ? <p role="alert" className="mt-2 text-xs font-medium text-red-600">{error}</p> : null}
-      <p className="mt-2 text-[11px] leading-4 text-slate-500">Receipt files stay in this browser on this device. They are not uploaded or backed up to the cloud.</p>
+      <p className="mt-2 text-[11px] leading-4 text-slate-500">Receipt files are uploaded to your private Firebase Storage path when the expense is saved.</p>
     </div>
   );
 }

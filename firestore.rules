@@ -1,0 +1,44 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function ownsPath(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    match /users/{userId}/jobs/{jobId} {
+      allow read: if ownsPath(userId);
+      allow create: if ownsPath(userId)
+        && request.resource.data.ownerId == userId;
+      allow update: if ownsPath(userId)
+        && resource.data.ownerId == userId
+        && request.resource.data.ownerId == userId;
+      allow delete: if ownsPath(userId)
+        && resource.data.ownerId == userId;
+
+      match /labourEntries/{entryId} {
+        allow read: if ownsPath(userId);
+        allow create, update: if ownsPath(userId)
+          && request.resource.data.ownerId == userId
+          && request.resource.data.jobId == jobId;
+        allow delete: if ownsPath(userId)
+          && resource.data.ownerId == userId
+          && resource.data.jobId == jobId;
+      }
+
+      match /expenses/{entryId} {
+        allow read: if ownsPath(userId);
+        allow create, update: if ownsPath(userId)
+          && request.resource.data.ownerId == userId
+          && request.resource.data.jobId == jobId;
+        allow delete: if ownsPath(userId)
+          && resource.data.ownerId == userId
+          && resource.data.jobId == jobId;
+      }
+    }
+
+    match /users/{userId}/migrations/{migrationId} {
+      allow read, write: if ownsPath(userId);
+    }
+  }
+}

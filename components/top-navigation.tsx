@@ -1,4 +1,10 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth-provider";
+import { signOutUser } from "@/lib/auth-service";
 
 const BrandMark = () => (
   <svg aria-hidden="true" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="none">
@@ -12,8 +18,23 @@ interface TopNavigationProps {
 }
 
 export function TopNavigation({ active = "jobs" }: TopNavigationProps) {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
   const activeClass = "relative flex h-full items-center text-[13px] font-semibold text-slate-900 after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:rounded-full after:bg-blue-600";
   const inactiveClass = "flex h-full items-center text-[13px] font-medium text-slate-500 transition hover:text-slate-900";
+  const initials = user?.email?.slice(0, 2).toUpperCase() ?? "MC";
+
+  async function logout() {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      await signOutUser();
+      router.replace("/login");
+    } finally {
+      setSigningOut(false);
+    }
+  }
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="flex h-[52px] items-center px-5 sm:px-10 lg:px-[52px]">
@@ -25,7 +46,10 @@ export function TopNavigation({ active = "jobs" }: TopNavigationProps) {
           <Link href="/dashboard" aria-current={active === "dashboard" ? "page" : undefined} className={active === "dashboard" ? activeClass : inactiveClass}>Dashboard</Link>
           <Link href="/dashboard#jobs" aria-current={active === "jobs" ? "page" : undefined} className={active === "jobs" ? activeClass : inactiveClass}>Jobs</Link>
         </nav>
-        <div aria-label="Profile for MS" className="ml-auto grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-slate-700 to-slate-950 text-[11px] font-bold text-white ring-2 ring-white shadow-sm outline outline-1 outline-slate-200">MS</div>
+        <div className="ml-auto flex items-center gap-3">
+          <div aria-label={`Profile for ${user?.email ?? "MarginCheck user"}`} className="hidden h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-slate-700 to-slate-950 text-[11px] font-bold text-white ring-2 ring-white shadow-sm outline outline-1 outline-slate-200 sm:grid">{initials}</div>
+          <button type="button" onClick={logout} disabled={signingOut} className="text-xs font-semibold text-slate-500 hover:text-slate-900 disabled:opacity-60">{signingOut ? "Signing out…" : "Log out"}</button>
+        </div>
       </div>
     </header>
   );

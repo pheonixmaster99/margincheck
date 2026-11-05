@@ -6,6 +6,7 @@ export type JobStatus = "Active" | "Completed";
 
 export interface Job {
   id: string;
+  ownerId: string;
   name: string;
   customer: string;
   status: JobStatus;
@@ -17,4 +18,5 @@ export interface Job {
   estimatedSubcontractors: number;
   estimatedOther: number;
   createdAt: string;
+  updatedAt: string;
 }

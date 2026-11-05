@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
+import { LegacyMigrationCard } from "@/components/legacy-migration-card";
+import { useMarginCheckData } from "@/components/margincheck-data-provider";
 import { SummaryCard } from "@/components/summary-card";
 import { TopNavigation } from "@/components/top-navigation";
 import {
@@ -14,17 +16,6 @@ import {
   type CurrencyDashboardTotals,
 } from "@/lib/calculations";
 import { formatCurrency, formatCurrencyWithCents } from "@/lib/currency";
-import {
-  getExpenseEntriesSnapshot,
-  getLabourEntriesSnapshot,
-  parseExpenseEntriesSnapshot,
-  parseLabourEntriesSnapshot,
-  subscribeToExpenseEntries,
-  subscribeToLabourEntries,
-} from "@/lib/entries-storage";
-import { getJobsSnapshot, parseJobsSnapshot, subscribeToJobs } from "@/lib/jobs-storage";
-
-const getServerSnapshot = () => "[]";
 
 function marginVarianceClass(value: number): string {
   if (value < 0) return "font-semibold text-red-500";
@@ -89,23 +80,17 @@ function MonetarySummaryCard({
 }
 
 export function Dashboard() {
-  const jobsSnapshot = useSyncExternalStore(subscribeToJobs, getJobsSnapshot, getServerSnapshot);
-  const labourSnapshot = useSyncExternalStore(
-    subscribeToLabourEntries,
-    getLabourEntriesSnapshot,
-    getServerSnapshot,
-  );
-  const expenseSnapshot = useSyncExternalStore(
-    subscribeToExpenseEntries,
-    getExpenseEntriesSnapshot,
-    getServerSnapshot,
-  );
+  const {
+    jobs: storedJobs,
+    labourEntries,
+    expenseEntries,
+    loading,
+    error,
+  } = useMarginCheckData();
   const jobs = useMemo(
-    () => parseJobsSnapshot(jobsSnapshot).sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    [jobsSnapshot],
+    () => [...storedJobs].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [storedJobs],
   );
-  const labourEntries = useMemo(() => parseLabourEntriesSnapshot(labourSnapshot), [labourSnapshot]);
-  const expenseEntries = useMemo(() => parseExpenseEntriesSnapshot(expenseSnapshot), [expenseSnapshot]);
   const totals = useMemo(
     () => calculateDashboardTotals(jobs, labourEntries, expenseEntries),
     [expenseEntries, jobs, labourEntries],
@@ -142,6 +127,10 @@ export function Dashboard() {
           </div>
           <Link href="/jobs/new" className="inline-flex h-11 items-center justify-center rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">+ New Job</Link>
         </header>
+
+        <LegacyMigrationCard />
+        {loading ? <p className="mt-6 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600">Loading your jobs from Firebase…</p> : null}
+        {error ? <p role="alert" className="mt-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700">{error}</p> : null}
 
         <section aria-label="Portfolio summary" className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <SummaryCard label="Active Jobs" value={String(totals.activeJobs)} />

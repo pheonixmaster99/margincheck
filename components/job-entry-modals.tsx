@@ -5,12 +5,11 @@ import { ReceiptAttachmentField } from "@/components/receipt-attachment-field";
 import { calculateLabourEntryTotal } from "@/lib/calculations";
 import { formatCurrency, getCurrencySymbol } from "@/lib/currency";
 import {
-  saveExpenseEntry,
-  saveLabourEntry,
-  updateExpenseEntry,
-  updateLabourEntry,
-} from "@/lib/entries-storage";
-import { deleteReceipt, saveReceipt } from "@/lib/receipt-storage";
+  createExpense,
+  updateExpense,
+} from "@/lib/expenses-service";
+import { createLabourEntry, updateLabourEntry } from "@/lib/labour-service";
+import { deleteReceipt, uploadReceipt } from "@/lib/receipts-service";
 import type { ExpenseCategory, ExpenseEntry, LabourEntry } from "@/types/entries";
 import type { Job } from "@/types/job";
 
@@ -54,6 +53,8 @@ export function AddLabourModal({ job, entry, onClose }: { job: Job; entry?: Labo
   const [hourlyCost, setHourlyCost] = useState(entry ? String(entry.hourlyCost) : "");
   const [notes, setNotes] = useState(entry?.notes ?? "");
   const [submitted, setSubmitted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const errors = {
     date: date ? "" : "Date is required.",
@@ -69,24 +70,33 @@ export function AddLabourModal({ job, entry, onClose }: { job: Job; entry?: Labo
   );
   const isValid = !errors.date && !errors.hours && !errors.hourlyCost;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
-    if (!isValid) return;
+    if (!isValid || isSaving) return;
+    setIsSaving(true);
+    setSaveError("");
+    const timestamp = new Date().toISOString();
     const savedEntry: LabourEntry = {
       id: entry?.id ?? crypto.randomUUID(),
       jobId: job.id,
+      ownerId: job.ownerId,
       date,
       workerName: workerName.trim() || undefined,
       hours: numericValue(hours),
       hourlyCost: numericValue(hourlyCost),
-      totalCost,
       notes: notes.trim() || undefined,
-      createdAt: entry?.createdAt ?? new Date().toISOString(),
+      createdAt: entry?.createdAt ?? timestamp,
+      updatedAt: timestamp,
     };
-    if (entry) updateLabourEntry(savedEntry);
-    else saveLabourEntry(savedEntry);
-    onClose();
+    try {
+      if (entry) await updateLabourEntry(savedEntry);
+      else await createLabourEntry(savedEntry);
+      onClose();
+    } catch {
+      setSaveError("The labour entry could not be saved. Please try again.");
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -120,10 +130,11 @@ export function AddLabourModal({ job, entry, onClose }: { job: Job; entry?: Labo
             <span className="text-sm font-medium text-slate-600">Total labour cost</span>
             <strong className="text-xl text-slate-900">{formatCurrency(totalCost, job.currency)}</strong>
           </div>
+          {saveError ? <p role="alert" className="sm:col-span-2 text-xs font-medium text-red-600">{saveError}</p> : null}
         </div>
         <footer className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
           <button type="button" onClick={onClose} className="h-10 rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
-          <button type="submit" className="h-10 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700">{entry ? "Update Labour" : "Save Labour"}</button>
+          <button type="submit" disabled={isSaving} className="h-10 rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60">{isSaving ? "Saving…" : entry ? "Update Labour" : "Save Labour"}</button>
         </footer>
       </form>
     </ModalShell>
@@ -152,38 +163,42 @@ export function AddExpenseModal({ job, entry, onClose }: { job: Job; entry?: Exp
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitted(true);
-    if (!isValid) return;
+    if (!isValid || isSaving) return;
     setIsSaving(true);
     setStorageError("");
-    let uploadedReceiptId: string | undefined;
+    let uploadedReceipt: ExpenseEntry["receipt"];
     let expenseSaved = false;
 
     try {
-      const uploadedReceipt = selectedReceipt ? await saveReceipt(selectedReceipt) : undefined;
-      uploadedReceiptId = uploadedReceipt?.receiptId;
+      uploadedReceipt = selectedReceipt
+        ? await uploadReceipt(job.ownerId, job.id, selectedReceipt)
+        : undefined;
       const nextReceipt = uploadedReceipt ?? (removeExistingReceipt ? undefined : entry?.receipt);
+      const timestamp = new Date().toISOString();
       const savedEntry: ExpenseEntry = {
         id: entry?.id ?? crypto.randomUUID(),
         jobId: job.id,
+        ownerId: job.ownerId,
         date,
         vendor: vendor.trim(),
         category,
         amount: numericValue(amount),
         notes: notes.trim() || undefined,
         receipt: nextReceipt,
-        createdAt: entry?.createdAt ?? new Date().toISOString(),
+        createdAt: entry?.createdAt ?? timestamp,
+        updatedAt: timestamp,
       };
-      if (entry) updateExpenseEntry(savedEntry);
-      else saveExpenseEntry(savedEntry);
+      if (entry) await updateExpense(savedEntry);
+      else await createExpense(savedEntry);
       expenseSaved = true;
 
       if (entry?.receipt && entry.receipt.receiptId !== nextReceipt?.receiptId) {
-        await deleteReceipt(entry.receipt.receiptId);
+        await deleteReceipt(entry.receipt);
       }
       onClose();
     } catch (error) {
-      if (uploadedReceiptId && !expenseSaved) {
-        try { await deleteReceipt(uploadedReceiptId); } catch { /* Best-effort rollback. */ }
+      if (uploadedReceipt && !expenseSaved) {
+        try { await deleteReceipt(uploadedReceipt); } catch { /* Best-effort rollback. */ }
       }
       setStorageError(error instanceof Error ? error.message : "The receipt could not be saved. Please try again.");
       setIsSaving(false);

@@ -5,9 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SummaryCard } from "@/components/summary-card";
 import { TopNavigation } from "@/components/top-navigation";
+import { useAuth } from "@/components/auth-provider";
 import { calculateJobFinancials } from "@/lib/calculations";
 import { formatCurrency, getCurrencySymbol } from "@/lib/currency";
-import { saveJob } from "@/lib/jobs-storage";
+import { createJob } from "@/lib/jobs-service";
 import { SUPPORTED_CURRENCIES, type CurrencyCode, type Job } from "@/types/job";
 
 interface FormValues {
@@ -57,9 +58,10 @@ function numericValue(value: string): number {
   return value !== "" && Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
-function buildJob(values: FormValues, id: string, createdAt: string): Job {
+function buildJob(values: FormValues, id: string, ownerId: string, createdAt: string): Job {
   return {
     id,
+    ownerId,
     name: values.name.trim(),
     customer: values.customer.trim(),
     status: "Active",
@@ -71,6 +73,7 @@ function buildJob(values: FormValues, id: string, createdAt: string): Job {
     estimatedSubcontractors: numericValue(values.estimatedSubcontractors),
     estimatedOther: numericValue(values.estimatedOther),
     createdAt,
+    updatedAt: createdAt,
   };
 }
 
@@ -137,14 +140,17 @@ function FormField({ id, label, value, error, type = "text", prefix, suffix, pla
 
 export function NewJobForm() {
   const router = useRouter();
+  const { user } = useAuth();
   const [values, setValues] = useState<FormValues>(initialValues);
   const [touched, setTouched] = useState<Partial<Record<FieldName, boolean>>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   const errors = useMemo(() => validate(values), [values]);
   const isFormValid = Object.keys(errors).length === 0;
   const previewJob = useMemo(
-    () => buildJob(values, "new-job-preview", new Date(0).toISOString()),
-    [values],
+    () => buildJob(values, "new-job-preview", user?.uid ?? "preview", new Date(0).toISOString()),
+    [user?.uid, values],
   );
   const previewFinancials = useMemo(() => calculateJobFinancials(previewJob), [previewJob]);
 
@@ -156,17 +162,25 @@ export function NewJobForm() {
     setTouched((current) => ({ ...current, [field]: true }));
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isFormValid) {
       setTouched(Object.fromEntries(formFieldNames.map((key) => [key, true])) as Record<FieldName, boolean>);
       return;
     }
 
+    if (!user || saving) return;
+    setSaving(true);
+    setSaveError("");
     const id = crypto.randomUUID();
-    const job = buildJob(values, id, new Date().toISOString());
-    saveJob(job);
-    router.push(`/jobs/${encodeURIComponent(id)}`);
+    const job = buildJob(values, id, user.uid, new Date().toISOString());
+    try {
+      await createJob(job);
+      router.push(`/jobs/${encodeURIComponent(id)}`);
+    } catch {
+      setSaveError("The job could not be created. Please check your connection and try again.");
+      setSaving(false);
+    }
   }
 
   const fieldProps = (id: FieldName) => ({
@@ -232,8 +246,9 @@ export function NewJobForm() {
 
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <Link href="/dashboard" className="inline-flex h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Cancel</Link>
-              <button type="submit" disabled={!isFormValid} className="inline-flex h-11 items-center justify-center rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none">Create Job</button>
+              <button type="submit" disabled={!isFormValid || saving || !user} className="inline-flex h-11 items-center justify-center rounded-lg bg-blue-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none">{saving ? "Creating…" : "Create Job"}</button>
             </div>
+            {saveError ? <p role="alert" className="text-right text-sm font-medium text-red-600">{saveError}</p> : null}
           </div>
 
           <aside className="grid gap-3 lg:sticky lg:top-5">
@@ -248,7 +263,7 @@ export function NewJobForm() {
             {previewFinancials.expectedProfit < 0 ? (
               <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium leading-5 text-red-700">This estimate is currently projected to lose money.</div>
             ) : null}
-            <p className="rounded-lg bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">Values are shown in {values.currency} and will be saved on this device.</p>
+            <p className="rounded-lg bg-blue-50 px-4 py-3 text-xs leading-5 text-blue-800">Values are shown in {values.currency} and will be saved to your MarginCheck account.</p>
           </aside>
         </form>
       </main>

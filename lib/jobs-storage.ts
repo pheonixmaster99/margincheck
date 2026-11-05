@@ -38,8 +38,10 @@ function normalizeJob(value: unknown): Job | null {
   if (!valid) return null;
   return {
     ...job,
+    ownerId: typeof job.ownerId === "string" ? job.ownerId : "",
     status,
     currency: isCurrency(job.currency) ? job.currency : "CAD",
+    updatedAt: typeof job.updatedAt === "string" ? job.updatedAt : job.createdAt,
   } as Job;
 }
 
@@ -88,6 +90,7 @@ function migrateLegacyJob(): Job[] {
   const createdAt = new Date().toISOString();
   const migrated: Job = {
     id: legacy.id,
+    ownerId: "",
     name: legacy.name,
     customer: legacy.customer,
     status: normalizeStatus(legacy.status) ?? "Active",
@@ -102,11 +105,11 @@ function migrateLegacyJob(): Job[] {
     estimatedSubcontractors: legacy.estimated.subcontractors,
     estimatedOther: legacy.estimated.other,
     createdAt,
+    updatedAt: createdAt,
   };
 
   migrateLegacyActualEntries(migrated.id, legacy.actual, createdAt);
   window.localStorage.setItem(JOBS_STORAGE_KEY, JSON.stringify([migrated]));
-  window.localStorage.removeItem(LEGACY_JOB_KEY);
   return [migrated];
 }
 

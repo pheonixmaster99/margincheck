@@ -1,13 +1,14 @@
 export interface LabourEntry {
   id: string;
   jobId: string;
+  ownerId: string;
   date: string;
   workerName?: string;
   hours: number;
   hourlyCost: number;
-  totalCost: number;
   notes?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export const EXPENSE_CATEGORIES = ["materials", "subcontractor", "other"] as const;
@@ -19,11 +20,13 @@ export interface ReceiptMetadata {
   filename: string;
   mimeType: "image/jpeg" | "image/png" | "application/pdf";
   size: number;
+  storagePath?: string;
 }
 
 export interface ExpenseEntry {
   id: string;
   jobId: string;
+  ownerId: string;
   date: string;
   vendor: string;
   category: ExpenseCategory;
@@ -31,4 +34,5 @@ export interface ExpenseEntry {
   notes?: string;
   receipt?: ReceiptMetadata;
   createdAt: string;
+  updatedAt: string;
 }
