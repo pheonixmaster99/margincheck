@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Image from "next/image";
-import { validateReceiptFile } from "@/lib/receipt-storage";
+import { validateReceiptFile } from "@/lib/receipt-file";
 import type { ReceiptMetadata } from "@/types/entries";
 
 const ACCEPTED_RECEIPTS = ".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf";

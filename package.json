@@ -10,7 +10,8 @@
     "test": "tsx --test tests/unit/*.test.ts",
     "test:rules": "npx firebase-tools emulators:exec --project demo-margincheck --only auth,firestore,storage \"tsx --test tests/rules/*.test.ts\"",
     "check:openai": "node --env-file=.env.local scripts/check-openai.mjs",
-    "check:firebase-admin": "node --env-file=.env.local scripts/check-firebase-admin.mjs"
+    "check:firebase-admin": "node --env-file=.env.local scripts/check-firebase-admin.mjs",
+    "check:receipt-analysis": "node --conditions=react-server --import tsx --env-file=.env.local scripts/check-receipt-analysis.ts"
   },
   "dependencies": {
     "firebase": "^13.2.0",

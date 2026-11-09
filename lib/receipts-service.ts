@@ -1,7 +1,7 @@
 import { FirebaseError } from "firebase/app";
 import { deleteObject, getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getFirebaseStorage } from "@/lib/firebase";
-import { validateReceiptFile } from "@/lib/receipt-storage";
+import { validateReceiptFile } from "@/lib/receipt-file";
 import type { ReceiptMetadata } from "@/types/entries";
 
 function safeFilename(filename: string): string {

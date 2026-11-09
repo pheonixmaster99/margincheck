@@ -1,17 +1,21 @@
 import type { ReceiptMetadata } from "@/types/entries";
+import {
+  MAX_RECEIPT_SIZE_BYTES,
+  SUPPORTED_RECEIPT_TYPES,
+  type SupportedReceiptMimeType,
+  validateReceiptFile,
+} from "@/lib/receipt-file";
+
+export {
+  MAX_RECEIPT_SIZE_BYTES,
+  SUPPORTED_RECEIPT_TYPES,
+  validateReceiptFile,
+};
+export type { SupportedReceiptMimeType };
 
 const DATABASE_NAME = "margincheck_receipts";
 const DATABASE_VERSION = 1;
 const RECEIPT_STORE = "receipts";
-
-export const MAX_RECEIPT_SIZE_BYTES = 10 * 1024 * 1024;
-export const SUPPORTED_RECEIPT_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "application/pdf",
-] as const;
-
-export type SupportedReceiptMimeType = (typeof SUPPORTED_RECEIPT_TYPES)[number];
 
 export interface StoredReceipt extends ReceiptMetadata {
   blob: Blob;
@@ -45,16 +49,6 @@ function runTransaction<T>(
     };
     operation(transaction.objectStore(RECEIPT_STORE), resolve, reject);
   }));
-}
-
-export function validateReceiptFile(file: File): string | null {
-  if (!SUPPORTED_RECEIPT_TYPES.includes(file.type as SupportedReceiptMimeType)) {
-    return "Choose a JPG, JPEG, PNG, or PDF file.";
-  }
-  if (file.size > MAX_RECEIPT_SIZE_BYTES) {
-    return "Receipt files must be 10 MB or smaller.";
-  }
-  return null;
 }
 
 export async function saveReceipt(file: File): Promise<ReceiptMetadata> {
