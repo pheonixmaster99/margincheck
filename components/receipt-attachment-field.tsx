@@ -25,11 +25,13 @@ export function ReceiptAttachmentField({
   selectedFile,
   onSelect,
   onRemove,
+  disabled = false,
 }: {
   existingReceipt?: ReceiptMetadata;
   selectedFile: File | null;
   onSelect: (file: File) => void;
   onRemove: () => void;
+  disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
@@ -49,6 +51,7 @@ export function ReceiptAttachmentField({
   }, [previewUrl]);
 
   function handleFile(event: ChangeEvent<HTMLInputElement>) {
+    if (disabled) return;
     const file = event.target.files?.[0];
     if (!file) return;
     const validationError = validateReceiptFile(file);
@@ -62,6 +65,7 @@ export function ReceiptAttachmentField({
   }
 
   function removeAttachment() {
+    if (disabled) return;
     setError("");
     if (inputRef.current) inputRef.current.value = "";
     onRemove();
@@ -73,7 +77,7 @@ export function ReceiptAttachmentField({
         <label htmlFor="expense-receipt" className="text-[13px] font-semibold text-slate-700">Attach receipt <span className="font-normal text-slate-400">(optional)</span></label>
         <span className="text-[11px] text-slate-400">JPG, PNG, or PDF · max 10 MB</span>
       </div>
-      <input ref={inputRef} id="expense-receipt" type="file" accept={ACCEPTED_RECEIPTS} onChange={handleFile} className="sr-only" />
+      <input ref={inputRef} id="expense-receipt" type="file" accept={ACCEPTED_RECEIPTS} onChange={handleFile} disabled={disabled} className="sr-only" />
 
       {displayedAttachment ? (
         <div className="flex items-center gap-4 rounded-xl border border-slate-200 bg-slate-50 p-3.5">
@@ -94,17 +98,17 @@ export function ReceiptAttachmentField({
             <p className="mt-0.5 text-xs text-slate-500">{formatFileSize(fileSize)} · {selectedFile ? "Ready to upload" : "Stored securely"}</p>
           </div>
           <div className="flex shrink-0 gap-3 text-xs font-semibold">
-            <label htmlFor="expense-receipt" className="cursor-pointer text-blue-600 hover:text-blue-700">Replace</label>
-            <button type="button" onClick={removeAttachment} className="text-red-500 hover:text-red-600">Remove</button>
+            <label htmlFor="expense-receipt" aria-disabled={disabled} className={`text-blue-600 hover:text-blue-700 ${disabled ? "pointer-events-none cursor-not-allowed opacity-50" : "cursor-pointer"}`}>Replace</label>
+            <button type="button" onClick={removeAttachment} disabled={disabled} className="text-red-500 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50">Remove</button>
           </div>
         </div>
       ) : (
-        <label htmlFor="expense-receipt" className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm font-semibold text-blue-600 transition hover:border-blue-400 hover:bg-blue-50/50">
+        <label htmlFor="expense-receipt" aria-disabled={disabled} className={`flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm font-semibold text-blue-600 transition ${disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:border-blue-400 hover:bg-blue-50/50"}`}>
           <span aria-hidden="true">↑</span> Attach receipt
         </label>
       )}
       {error ? <p role="alert" className="mt-2 text-xs font-medium text-red-600">{error}</p> : null}
-      <p className="mt-2 text-[11px] leading-4 text-slate-500">Receipt files are uploaded to your private Firebase Storage path when the expense is saved.</p>
+      <p className="mt-2 text-[11px] leading-4 text-slate-500">New receipts are uploaded temporarily to your private Firebase Storage path for analysis and kept when the expense is saved.</p>
     </div>
   );
 }

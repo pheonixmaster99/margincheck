@@ -1,4 +1,4 @@
-import type { ExpenseCategory } from "@/types/entries";
+import type { ExpenseCategory, ReceiptMetadata } from "@/types/entries";
 import type { CurrencyCode } from "@/types/job";
 
 export type ReceiptAnalysisConfidence = "high" | "medium" | "low";
@@ -13,4 +13,13 @@ export interface ReceiptAnalysis {
   confidence: ReceiptAnalysisConfidence;
   uncertainFields: string[];
   warnings: string[];
+}
+
+export interface ReceiptAnalysisResult {
+  analysis: ReceiptAnalysis;
+  receipt: Pick<ReceiptMetadata, "filename" | "mimeType" | "size">;
+  job: {
+    id: string;
+    currency: CurrencyCode;
+  };
 }
